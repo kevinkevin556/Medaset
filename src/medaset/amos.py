@@ -19,7 +19,7 @@ from monai.transforms import (
 )
 from monai.transforms import Transform as MonaiTransform
 
-from base import BaseMixIn
+from .base import BaseMixIn
 
 abbr = {
     "train": "Tr",

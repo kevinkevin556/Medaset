@@ -10,7 +10,7 @@ from matplotlib.colors import ListedColormap
 from torchvision.io import read_image
 from torchvision.transforms.functional import to_pil_image
 
-from utils import apply_window, get_file_paths, get_paths_from_json, read_image
+from .utils import apply_window, get_file_paths, get_paths_from_json, read_image
 
 
 class BaseMixIn:
