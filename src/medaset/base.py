@@ -20,7 +20,7 @@ class BaseMixIn:
         target_dir: Optional[Sequence] = None,
         root_dir: Optional[str] = None,
         dataset_json: Optional[Sequence] = None,
-        n_classes: Optional[int] = -1,
+        num_classes: Optional[int] = -1,
         cmap: Optional[Union[str, ListedColormap]] = None,
         mask_mapping: Optional[dict] = None,
     ):
@@ -32,16 +32,16 @@ class BaseMixIn:
             self.image_path, self.target_path = get_paths_from_json(dataset_json, root_dir=root_dir)
 
         self.mask_mapping = mask_mapping
-        self.n_classes = n_classes if n_classes else len(mask_mapping)
-        assert self.n_classes >= 2, "The number of classes is at least 2."
+        self.num_classes = num_classes if num_classes else len(mask_mapping)
+        assert self.num_classes >= 2, "The number of classes is at least 2."
 
         # Colormap
         self.cmap = cmap
         if self.cmap is None:
-            if self.n_classes == 2:  # Default binary colormap
+            if self.num_classes == 2:  # Default binary colormap
                 self.cmap = "gray"
             else:  # Default multiclass colormap
-                cmap = plt.get_cmap("rainbow")(np.linspace(0, 1, self.n_classes - 1))
+                cmap = plt.get_cmap("rainbow")(np.linspace(0, 1, self.num_classes - 1))
                 cmap = np.insert(cmap, 0, [0, 0, 0, 1], axis=0)
                 self.cmap = ListedColormap(cmap)
 

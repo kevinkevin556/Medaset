@@ -21,6 +21,9 @@ from monai.transforms import Transform as MonaiTransform
 
 from .base import BaseMixIn
 
+__all__ = ["AMOSDataset", "amos_train_transforms", "amos_val_transforms"]
+
+
 abbr = {
     "train": "Tr",
     "validation": "Va",
@@ -33,19 +36,21 @@ def get_file_number(filename):
 
 
 class AMOSDataset(BaseMixIn, CacheDataset):
+    # Dataset info
+    num_classes = 16
+    max_ct_number = 500
+
     def __init__(
         self,
         root_dir: str,
         modality: str = "ct",
         stage: Literal["train", "validation", "test"] = "train",
         transform: MonaiTransform = None,
-        n_classes=16,
         mask_mapping: dict = None,
         dev: bool = False,
         cache_rate: float = 0.1,
         num_workers: int = 2,
     ):
-        # Dataset info
         self.modality = modality
         self.stage = stage
 
@@ -53,17 +58,17 @@ class AMOSDataset(BaseMixIn, CacheDataset):
             self,
             image_dir=os.path.join(root_dir, f"images{abbr[self.stage]}"),
             target_dir=os.path.join(root_dir, f"labels{abbr[self.stage]}"),
-            n_classes=n_classes,
+            n_classes=num_classes,
             mask_mapping=mask_mapping,
         )
 
         # Collect data with specified modality
         if self.modality == "ct":
-            self.image_path = [p for p in self.image_path if get_file_number(p) <= 500]
-            self.target_path = [p for p in self.target_path if get_file_number(p) <= 500]
+            self.image_path = [p for p in self.image_path if get_file_number(p) <= max_ct_number]
+            self.target_path = [p for p in self.target_path if get_file_number(p) <= max_ct_number]
         elif self.modality == "mr":
-            self.image_path = [p for p in self.image_path if get_file_number(p) > 500]
-            self.target_path = [p for p in self.target_path if get_file_number(p) > 500]
+            self.image_path = [p for p in self.image_path if get_file_number(p) > max_ct_number]
+            self.target_path = [p for p in self.target_path if get_file_number(p) > max_ct_number]
         elif self.modality == "ct+mr":
             pass
         else:
@@ -72,16 +77,19 @@ class AMOSDataset(BaseMixIn, CacheDataset):
         # Developing mode (20% for training data, 5% for other stage)
         if dev:
             if stage == "train":
+                # at least 40 images in a training set
                 n_train_dev = max(int(len(self.image_path) * 0.2), 40)
                 self.image_path = self.image_path[:n_train_dev]
                 self.target_path = self.target_path[:n_train_dev]
             else:
+                # at least 5 image in a validation / testing set
                 n_val_dev = max(int(len(self.image_path) * 0.02), 5)
                 self.image_path = self.image_path[:n_val_dev]
                 self.target_path = self.target_path[:n_val_dev]
 
-        # Transformation
+        # Transformations
         if isinstance(transform, MonaiTransform):
+            # Provide your own transformation then the default transformations will not be applied
             pass
         elif stage == "train":
             transform = amos_train_transforms
@@ -90,7 +98,7 @@ class AMOSDataset(BaseMixIn, CacheDataset):
         else:
             raise ValueError("Either stage or transform should be specified.")
 
-        # Initialize CacheDataset
+        # Initialize as Monai CacheDataset
         CacheDataset.__init__(
             self,
             data=[{"image": im, "label": la} for im, la in zip(self.image_path, self.target_path)],
@@ -115,7 +123,10 @@ class AMOSDataset(BaseMixIn, CacheDataset):
                         _b["label"][_b["label"] == ori_val] = new_val
                     batch[i] = _b
             else:
-                raise TypeError("Data type other than dict or list can not modify the label part through mask_mapping.")
+                pass
+                # raise TypeError(
+                #     f"Data type {type(batch)}, which is other than dict or list, can not modify label through mask_mapping. "
+                # )
         return batch
 
 
