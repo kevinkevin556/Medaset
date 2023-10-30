@@ -10,7 +10,8 @@ from monai.utils import convert_to_tensor
 __all__ = [
     "ApplyMaskMapping",
     "ApplyMaskMappingd",
-    "AddBackground",
+    "BackgroundifyClasses",
+    "BackgroundifyClassesd",
 ]
 
 
