@@ -45,53 +45,6 @@ def get_file_number(filename):
     return int(str(filename).split("_")[-1].split(".")[0])
 
 
-amos_train_transforms = Compose(
-    [
-        LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
-        ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
-        RandCropByPosNegLabeld(
-            keys=["image", "label"],
-            label_key="label",
-            spatial_size=spatial_size,
-            pos=1,
-            neg=1,
-            num_samples=2,
-            image_key="image",
-            image_threshold=0,
-            allow_smaller=True,
-        ),
-        SpatialPadd(keys=["image", "label"], spatial_size=spatial_size),
-        RandShiftIntensityd(keys=["image"], offsets=0.10, prob=0.50),
-        RandAffined(
-            keys=["image", "label"],
-            mode=("bilinear", "nearest"),
-            prob=1.0,
-            spatial_size=(96, 96, 96),
-            rotate_range=(0, 0, np.pi / 30),
-            scale_range=(0.1, 0.1, 0.1),
-        ),
-        ToTensord(keys=["image", "label"]),
-    ]
-)
-
-
-amos_val_transforms = Compose(
-    [
-        LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
-        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        Orientationd(keys=["image", "label"], axcodes="RAS"),
-        ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
-        CropForegroundd(keys=["image", "label"], source_key="image"),
-        ToTensord(keys=["image", "label"]),
-    ]
-)
-
-
 class AMOSDataset(BaseMixIn, CacheDataset):
     # Dataset info
     num_classes = 16
@@ -156,9 +109,13 @@ class AMOSDataset(BaseMixIn, CacheDataset):
             raise ValueError("Either stage or transform should be specified.")
 
         # Initialize as Monai CacheDataset
+        modality_label = ["ct" if get_file_number(p) <= self.max_ct_number else "mr" for p in self.image_path]
         CacheDataset.__init__(
             self,
-            data=[{"image": im, "label": la} for im, la in zip(self.image_path, self.target_path)],
+            data=[
+                {"image": im, "label": la, "modality": mod}
+                for im, la, mod in zip(self.image_path, self.target_path, modality_label)
+            ],
             transform=transform,
             cache_rate=cache_rate,
             num_workers=num_workers,
@@ -166,6 +123,53 @@ class AMOSDataset(BaseMixIn, CacheDataset):
 
     def __len__(self):
         return len(self.target_path)
+
+
+amos_train_transforms = Compose(
+    [
+        LoadImaged(keys=["image", "label"]),
+        AddChanneld(keys=["image", "label"]),
+        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
+        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        RandCropByPosNegLabeld(
+            keys=["image", "label"],
+            label_key="label",
+            spatial_size=spatial_size,
+            pos=1,
+            neg=1,
+            num_samples=2,
+            image_key="image",
+            image_threshold=0,
+            allow_smaller=True,
+        ),
+        SpatialPadd(keys=["image", "label"], spatial_size=spatial_size),
+        RandShiftIntensityd(keys=["image"], offsets=0.10, prob=0.50),
+        RandAffined(
+            keys=["image", "label"],
+            mode=("bilinear", "nearest"),
+            prob=1.0,
+            spatial_size=(96, 96, 96),
+            rotate_range=(0, 0, np.pi / 30),
+            scale_range=(0.1, 0.1, 0.1),
+        ),
+        ToTensord(keys=["image", "label"]),
+    ]
+)
+
+
+amos_val_transforms = Compose(
+    [
+        LoadImaged(keys=["image", "label"]),
+        AddChanneld(keys=["image", "label"]),
+        Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
+        Orientationd(keys=["image", "label"], axcodes="RAS"),
+        ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        ToTensord(keys=["image", "label"]),
+    ]
+)
 
 
 class SimpleAMOSDataset(AMOSDataset):
