@@ -124,7 +124,6 @@ class AMOSDataset(BaseMixIn, CacheDataset):
     def __len__(self):
         return len(self.target_path)
 
-
 amos_train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
@@ -170,6 +169,8 @@ amos_val_transforms = Compose(
         ToTensord(keys=["image", "label"]),
     ]
 )
+
+
 
 
 class SimpleAMOSDataset(AMOSDataset):
