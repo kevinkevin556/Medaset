@@ -24,7 +24,9 @@ class BaseMixIn:
         cmap: Optional[Union[str, ListedColormap]] = None,
         mask_mapping: Optional[dict] = None,
     ):
-        assert (image_dir is not None) or (dataset_json is not None), "Either image_dir"
+        assert (image_dir is not None) or (
+            dataset_json is not None
+        ), "Either image_dir or dataset_json should be specified."
         if image_dir is not None:
             self.image_path = get_file_paths(image_dir)
             self.target_path = get_file_paths(target_dir) if target_dir else [None] * len(self.image_path)
