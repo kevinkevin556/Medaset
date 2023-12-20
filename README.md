@@ -14,5 +14,5 @@
 `git clone` this repo and install it using
 
 ```bash
-pip install .
+pip install -e .
 ```
