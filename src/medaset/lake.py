@@ -19,8 +19,11 @@ from monai.transforms import (
     RandAffined,
     RandCropByPosNegLabeld,
     RandShiftIntensityd,
+    Resized,
+    ResizeWithPadOrCropd,
     ScaleIntensityRanged,
     Spacingd,
+    SpatialCropd,
     SpatialPadd,
     ToTensord,
 )
@@ -32,13 +35,23 @@ from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
 
 __all__ = [
     "SMATCTDataset",
+    "smat_ct_load_image,",
     "smat_ct_transforms",
     "SMATMRDataset",
+    "smat_mr_load_image",
     "smat_mr_transforms",
     "SMATDataset",
 ]
 
 
+smat_ct_load_image = (
+    LoadImaged(
+        keys=["image", "label"],
+        reader=[PydicomReader(swap_ij=False), CV2Reader(flags=cv2.IMREAD_GRAYSCALE)],
+    ),
+)
+
+# Note: I am not certain whether spacing and orientation should be adjusted.
 smat_ct_transforms = Compose(
     [
         LoadImaged(
@@ -46,11 +59,10 @@ smat_ct_transforms = Compose(
             reader=[PydicomReader(swap_ij=False), CV2Reader(flags=cv2.IMREAD_GRAYSCALE)],
         ),
         EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
-        # Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        # Orientationd(keys=["image", "label"], axcodes="RAS"),
         ScaleIntensityRanged(keys=["image"], a_min=-200, a_max=200, b_min=0, b_max=1, clip=True),
-        NormalizeIntensityd(keys=["image"]),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
         SpatialPadd(keys=["image", "label"], spatial_size=(512, 512)),
+        SpatialCropd(keys=["image", "label"], roi_center=(256, 256), roi_size=(512, 512)),
         ToTensord(keys=["image", "label"]),
     ]
 )
@@ -200,13 +212,20 @@ class SMATCTDataset(BaseMixIn, CacheDataset):
 
     def __len__(self) -> int:
         return len(self.target_path)
-    
+
     def __getitem__(self, index: Union[int, slice, Sequence[int]]):
         # Suppress CV2Reader "unable to load" exceptions for DICOM files
         logging.disable(logging.CRITICAL)
         return super().__getitem__(index)
 
 
+smat_mr_load_image = LoadImaged(
+    keys=["image", "label"],
+    reader=[PydicomReader(swap_ij=False, force=True), CV2Reader(flags=cv2.IMREAD_GRAYSCALE)],
+    image_only=True,
+)
+
+# Note: I am not certain whether spacing and orientation should be adjusted.
 smat_mr_transforms = Compose(
     [
         LoadImaged(
@@ -215,12 +234,11 @@ smat_mr_transforms = Compose(
             image_only=True,
         ),
         EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
-        # Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
-        # Orientationd(keys=["image", "label"], axcodes="RAS"),
-        NormalizeIntensityd(keys=["image"]),
+        ScaleIntensityRanged(keys=["image"], a_min=0, a_max=1000, b_min=0, b_max=1, clip=True),
+        CropForegroundd(keys=["image", "label"], source_key="image"),
+        Resized(keys=["image", "label"], spatial_size=512, size_mode="longest"),
         SpatialPadd(keys=["image", "label"], spatial_size=(512, 512)),
         ToTensord(keys=["image", "label"]),
-        # DeleteItemsd(keys=["image", "label"]),
     ]
 )
 
@@ -366,7 +384,7 @@ class SMATMRDataset(BaseMixIn, CacheDataset):
 
     def __getitem__(self, index: Union[int, slice, Sequence[int]]):
         # Suppress CV2Reader "unable to load" exceptions for DICOM files
-        logging.disable(logging.CRITICAL) 
+        logging.disable(logging.CRITICAL)
         return super().__getitem__(index)
 
 
@@ -379,6 +397,7 @@ class SMATDataset(SMATCTDataset, SMATMRDataset):
         modality: str,
         target: Literal["vat", "tsm", "sat", "all"] = "all",
         stage: Literal["train", "validation", "test"] = "train",
+        sequence: str = "pdff",
         transform: MonaiTransform = None,
         mask_mapping: dict = None,
         dev: bool = False,
@@ -407,7 +426,7 @@ class SMATDataset(SMATCTDataset, SMATMRDataset):
             SMATMRDataset.__init__(
                 self=self,
                 root_dir=os.path.join(root_dir, "MR"),
-                sequence="pdff",
+                sequence=sequence,
                 target=target,
                 stage=stage,
                 transform=transform,
