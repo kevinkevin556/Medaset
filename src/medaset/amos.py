@@ -4,9 +4,9 @@ from typing import Literal
 import numpy as np
 from monai.data import CacheDataset
 from monai.transforms import (
-    AddChanneld,
     Compose,
     CropForegroundd,
+    EnsureChannelFirstd,
     LoadImaged,
     Orientationd,
     RandAffined,
@@ -124,10 +124,11 @@ class AMOSDataset(BaseMixIn, CacheDataset):
     def __len__(self):
         return len(self.target_path)
 
+
 amos_train_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
+        EnsureChannelFirstd(keys=["image", "label"], strict_check=True, channel_dim="no_channel"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
@@ -161,7 +162,7 @@ amos_train_transforms = Compose(
 amos_val_transforms = Compose(
     [
         LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
+        EnsureChannelFirstd(keys=["image", "label"], strict_check=True, channel_dim="no_channel"),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
@@ -169,8 +170,6 @@ amos_val_transforms = Compose(
         ToTensord(keys=["image", "label"]),
     ]
 )
-
-
 
 
 class SimpleAMOSDataset(AMOSDataset):
@@ -215,9 +214,13 @@ class SimpleAMOSDataset(AMOSDataset):
 
 simple_amos_train_transforms = Compose(
     [
-        LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
-        BackgroundifyClassesd(keys=["label"], classes=SimpleAMOSDataset.excluded_classes),
+        LoadImaged(keys=["image", "label"], image_only=False),
+        EnsureChannelFirstd(keys=["image", "label"], strict_check=True, channel_dim="no_channel"),
+        BackgroundifyClassesd(
+            keys=["label"],
+            channel_dim=0,
+            classes=SimpleAMOSDataset.excluded_classes,
+        ),
         ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAMOSDataset.relabelling),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
@@ -251,9 +254,13 @@ simple_amos_train_transforms = Compose(
 
 simple_amos_val_transforms = Compose(
     [
-        LoadImaged(keys=["image", "label"]),
-        AddChanneld(keys=["image", "label"]),
-        BackgroundifyClassesd(keys=["label"], classes=SimpleAMOSDataset.excluded_classes),
+        LoadImaged(keys=["image", "label"], image_only=True),
+        EnsureChannelFirstd(keys=["image", "label"], strict_check=True, channel_dim="no_channel"),
+        BackgroundifyClassesd(
+            keys=["label"],
+            channel_dim=0,
+            classes=SimpleAMOSDataset.excluded_classes,
+        ),
         ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAMOSDataset.relabelling),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
