@@ -30,8 +30,9 @@ from monai.transforms import (
 from monai.transforms import Transform as MonaiTransform
 
 from .base import BaseMixIn
-from .image_readers import CV2Reader, IncompatiblePydicomReader
+from .image_readers import CV2Reader
 from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
+from .utils import check_image_label_pairing, generate_dev_subset, split_train_test
 
 __all__ = [
     "SMATCTDataset",
@@ -69,6 +70,8 @@ smat_ct_transforms = Compose(
 
 
 class SMATCTDataset(BaseMixIn, CacheDataset):
+    modality = "ct"
+
     def __init__(
         self,
         root_dir: str,
@@ -84,7 +87,6 @@ class SMATCTDataset(BaseMixIn, CacheDataset):
         sm_as_whole: bool = False,
     ):
         # Class information
-        self.modality = "ct"
         self.target = target
         self.stage = stage
         if target == "all":
@@ -115,66 +117,16 @@ class SMATCTDataset(BaseMixIn, CacheDataset):
         )
 
         # Check whether images match labels
-        image_name = set([Path(p).stem for p in self.image_path])
-        image_parent, image_suffix = Path(self.image_path[0]).parent, Path(self.image_path[0]).suffix
-        target_name = set([Path(p).stem for p in self.target_path])
-        target_parent, target_suffix = Path(self.target_path[0]).parent, Path(self.target_path[0]).suffix
-        no_target_images = image_name - target_name
-        no_source_labels = target_name - image_name
-        if no_target_images:
-            self.image_path = sorted(
-                [str(image_parent / f"{name}{image_suffix}") for name in image_name - no_target_images]
-            )
-            warnings.warn(
-                f"Some images are removed due to the lack of associated label: {sorted(no_target_images)}", UserWarning
-            )
-        else:
-            self.image_path = sorted(self.image_path)
-
-        if no_source_labels:
-            self.target_path = sorted(
-                [str(target_parent / f"{name}{target_suffix}") for name in target_name - no_source_labels]
-            )
-            warnings.warn(
-                f"Some labels are removed due to the lack of associated image: {sorted(no_source_labels)}", UserWarning
-            )
-        else:
-            self.target_path = sorted(self.target_path)
-
+        self.image_path, self.target_path = check_image_label_pairing(self.image_path, self.target_path)
         # Train-test split (if required)
-        assert math.isclose(sum(split_ratio), 1)
-        n = len(self.target_path)
-        n_train, n_test = int(n * split_ratio[0]), int(n * split_ratio[2])
-        random_id = random.RandomState(seed=random_seed).permutation(n)
-        self.train_indices = random_id[:n_train]
-        self.valid_indices = random_id[n_train:-n_test]
-        self.test_indices = random_id[-n_test:]
-        if stage == "train":
-            self.image_path = [self.image_path[i] for i in self.train_indices]
-            self.target_path = [self.target_path[i] for i in self.train_indices]
-        elif stage == "validation":
-            self.image_path = [self.image_path[i] for i in self.valid_indices]
-            self.target_path = [self.target_path[i] for i in self.valid_indices]
-        elif stage == "test":
-            self.image_path = [self.image_path[i] for i in self.test_indices]
-            self.target_path = [self.target_path[i] for i in self.test_indices]
-        elif stage is None:
-            pass
-        else:
-            raise ValueError(f"Invalid stage. Expect 'train', 'val', 'test' or None. Got {stage}")
-
+        self.image_path, self.target_path = split_train_test(
+            self.image_path, self.target_path, stage, split_ratio, random_seed
+        )
         # Developing mode (20% for training data, 5% for other stage)
         if dev:
-            if stage == "train":
-                # at least 10 images in a training set
-                n_train_dev = 10
-                self.image_path = self.image_path[:n_train_dev]
-                self.target_path = self.target_path[:n_train_dev]
-            else:
-                # at least 5 image in a validation / testing set
-                n_val_dev = 5
-                self.image_path = self.image_path[:n_val_dev]
-                self.target_path = self.target_path[:n_val_dev]
+            self.image_path, self.target_path = generate_dev_subset(
+                self.image_path, self.target_path, stage, n_train_dev=10, n_val_dev=5
+            )
 
         # Transformations
         label_to_integer = ApplyMaskMappingd(
@@ -236,7 +188,7 @@ smat_mr_transforms = Compose(
         EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
         ScaleIntensityRanged(keys=["image"], a_min=0, a_max=1000, b_min=0, b_max=1, clip=True),
         CropForegroundd(keys=["image", "label"], source_key="image"),
-        Resized(keys=["image", "label"], spatial_size=512, size_mode="longest"),
+        Resized(keys=["image", "label"], spatial_size=512, size_mode="longest", mode="nearest-exact"),
         SpatialPadd(keys=["image", "label"], spatial_size=(512, 512)),
         ToTensord(keys=["image", "label"]),
     ]
@@ -322,39 +274,14 @@ class SMATMRDataset(BaseMixIn, CacheDataset):
                 pass
 
         # Train-test split (if required)
-        assert math.isclose(sum(split_ratio), 1)
-        n = len(self.target_path)
-        n_train, n_test = int(n * split_ratio[0]), int(n * split_ratio[2])
-        random_id = random.RandomState(seed=random_seed).permutation(n)
-        self.train_indices = random_id[:n_train]
-        self.valid_indices = random_id[n_train:-n_test]
-        self.test_indices = random_id[-n_test:]
-        if stage == "train":
-            self.image_path = [self.image_path[i] for i in self.train_indices]
-            self.target_path = [self.target_path[i] for i in self.train_indices]
-        elif stage == "validation":
-            self.image_path = [self.image_path[i] for i in self.valid_indices]
-            self.target_path = [self.target_path[i] for i in self.valid_indices]
-        elif stage == "test":
-            self.image_path = [self.image_path[i] for i in self.test_indices]
-            self.target_path = [self.target_path[i] for i in self.test_indices]
-        elif stage is None:
-            pass
-        else:
-            raise ValueError(f"Invalid stage. Expect 'train', 'val', 'test' or None. Got {stage}")
-
+        self.image_path, self.target_path = split_train_test(
+            self.image_path, self.target_path, stage, split_ratio, random_seed
+        )
         # Developing mode (20% for training data, 5% for other stage)
         if dev:
-            if stage == "train":
-                # at least 10 images in a training set
-                n_train_dev = 10
-                self.image_path = self.image_path[:n_train_dev]
-                self.target_path = self.target_path[:n_train_dev]
-            else:
-                # at least 5 image in a validation / testing set
-                n_val_dev = 5
-                self.image_path = self.image_path[:n_val_dev]
-                self.target_path = self.target_path[:n_val_dev]
+            self.image_path, self.target_path = generate_dev_subset(
+                self.image_path, self.target_path, stage, n_train_dev=10, n_val_dev=5
+            )
 
         # Transformations
         label_to_integer = ApplyMaskMappingd(
@@ -397,7 +324,7 @@ class SMATDataset(SMATCTDataset, SMATMRDataset):
         modality: str,
         target: Literal["vat", "tsm", "sat", "all"] = "all",
         stage: Literal["train", "validation", "test"] = "train",
-        sequence: str = "pdff",
+        sequence: Literal["w", "f", "in", "op", "pdff"] = "pdff",
         transform: MonaiTransform = None,
         mask_mapping: dict = None,
         dev: bool = False,

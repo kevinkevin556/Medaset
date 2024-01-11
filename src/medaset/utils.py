@@ -1,5 +1,7 @@
 import json
+import math
 import os
+import warnings
 from collections.abc import Mapping, Sequence
 from inspect import signature
 from pathlib import Path
@@ -118,3 +120,70 @@ def apply_window(image: ArrayLike, min: int, max: int) -> ArrayLike:
     image[image < min] = min
     image[image > max] = max
     return image
+
+
+def split_train_test(image_path, target_path, stage, split_ratio, random_seed):
+    assert math.isclose(sum(split_ratio), 1)
+    n = len(target_path)
+    n_train, n_test = int(n * split_ratio[0]), int(n * split_ratio[2])
+    random_id = np.random.RandomState(seed=random_seed).permutation(n)
+    train_indices = random_id[:n_train]
+    valid_indices = random_id[n_train:-n_test]
+    test_indices = random_id[-n_test:]
+    if stage == "train":
+        image_path = [image_path[i] for i in train_indices]
+        target_path = [target_path[i] for i in train_indices]
+    elif stage == "validation":
+        image_path = [image_path[i] for i in valid_indices]
+        target_path = [target_path[i] for i in valid_indices]
+    elif stage == "test":
+        image_path = [image_path[i] for i in test_indices]
+        target_path = [target_path[i] for i in test_indices]
+    elif stage is None:
+        pass
+    else:
+        raise ValueError(f"Invalid stage. Expect 'train', 'val', 'test' or None. Got {stage}")
+    return image_path, target_path
+
+
+def check_image_label_pairing(image_path, target_path, raise_exception=False):
+    image_name = set([Path(p).stem for p in image_path])
+    image_parent, image_suffix = Path(image_path[0]).parent, Path(image_path[0]).suffix
+    target_name = set([Path(p).stem for p in target_path])
+    target_parent, target_suffix = Path(target_path[0]).parent, Path(target_path[0]).suffix
+    no_target_images = image_name - target_name
+    no_source_labels = target_name - image_name
+
+    # Raise exception or remove images if there is no associated label
+    if no_target_images:
+        if raise_exception:
+            raise FileNotFoundError(f"No associated label of these images: {sorted(no_target_images)}")
+        else:
+            image_path = sorted([str(image_parent / f"{name}{image_suffix}") for name in image_name - no_target_images])
+            warnings.warn(
+                f"Some images are removed due to the lack of associated label: {sorted(no_target_images)}", UserWarning
+            )
+
+    # Raise exception or remove labels if there is no associated source image
+    if no_source_labels:
+        if raise_exception:
+            raise FileNotFoundError(f"No associated image of these labels: {sorted(no_source_labels)}")
+        else:
+            target_path = sorted(
+                [str(target_parent / f"{name}{target_suffix}") for name in target_name - no_source_labels]
+            )
+            warnings.warn(
+                f"Some labels are removed due to the lack of associated image: {sorted(no_source_labels)}", UserWarning
+            )
+
+    return image_path, target_path
+
+
+def generate_dev_subset(image_path, target_path, stage, n_train_dev=10, n_val_dev=5):
+    if stage == "train":
+        image_path = image_path[:n_train_dev]
+        target_path = target_path[:n_train_dev]
+    else:
+        image_path = image_path[:n_val_dev]
+        target_path = target_path[:n_val_dev]
+    return image_path, target_path
