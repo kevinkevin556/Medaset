@@ -16,3 +16,24 @@
 ```bash
 pip install -e .
 ```
+## Currently Supported Datasets
+
+* **AMOS (Abdominal Multi-Organ Segmentation)**
+    * Grand Challenge: [https://amos22.grand-challenge.org/](https://amos22.grand-challenge.org/)
+    * Arxiv: [https://arxiv.org/abs/2206.08023](https://arxiv.org/abs/2206.08023)
+* **SMAT (Skeletal Muscle and Adipose Tissue)**
+    * Private dataset
+
+
+## Useful Links
+
+**Metadata Desciptions**
+* [NIfTI file header discriptions](https://brainder.org/2012/09/23/the-nifti-file-format/)
+* [DICOM Standard Browser](https://dicom.innolitics.com/ciods)
+
+**Medical Image Coordinate Systems**
+* [An Introduction from 3D Slicer](https://slicer.readthedocs.io/en/latest/user_guide/coordinate_systems.html)
+* [An Introduction of coordinate systems and affines from nipy.org](https://nipy.org/nibabel/coordinate_systems.html)
+* [Defining the DICOM orientation](https://nipy.org/nibabel/dicom/dicom_orientation.html)
+* [Geometry in Medical Imaging: DICOM and NIfTI formats](https://discovery.ucl.ac.uk/id/eprint/10146893/1/geometry_medim.pdf)
+* [The First Step for Neuroimaging Data Analysis: DICOM to NIfTI conversion](https://core.ac.uk/download/pdf/79518053.pdf)
