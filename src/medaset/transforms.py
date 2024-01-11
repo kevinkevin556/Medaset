@@ -1,16 +1,33 @@
-from typing import Dict, Hashable, Mapping, Optional
+import logging
+import shutil
+import tempfile
+from pathlib import Path
+from typing import Any, Dict, Hashable, Mapping, Optional, Sequence, Union
 
+import dicom2nifti
+import numpy as np
+import pydicom
 import torch
-from monai.config import KeysCollection
+from monai.config import DtypeLike, KeysCollection, NdarrayOrTensor, PathLike
+from monai.data.image_reader import ImageReader
 from monai.data.meta_tensor import MetaTensor
-from monai.transforms import MapTransform, Transform
+from monai.transforms import LoadImage, LoadImaged, MapTransform, Transform
+from monai.utils import GridSamplePadMode, ensure_tuple, ensure_tuple_rep, require_pkg
+from monai.utils.enums import PostFix
+from PIL import Image
+
+from .utils import check_image_label_pairing
 
 __all__ = [
     "ApplyMaskMapping",
     "ApplyMaskMappingd",
     "BackgroundifyClasses",
     "BackgroundifyClassesd",
+    "LoadDicomSliceAsVolume",
+    "LoadDicomSliceAsVolumed",
 ]
+
+DEFAULT_POST_FIX = PostFix.meta()
 
 
 class ApplyMaskMapping(Transform):
@@ -102,3 +119,191 @@ class BackgroundifyClassesd(MapTransform):
         for key in self.key_iterator(d):
             d[key] = self.backgroundifier(d[key])
         return d
+
+
+@require_pkg("dicom2nifti")
+class LoadDicomSliceAsVolume(LoadImage):
+    def __init__(
+        self,
+        reader=None,
+        image_only: bool = True,
+        dtype: Optional[DtypeLike] = np.float32,
+        ensure_channel_first: bool = False,
+        simple_keys: bool = False,
+        prune_meta_pattern: Optional[str] = None,
+        prune_meta_sep: str = ".",
+        expanduser: bool = True,
+        nifti_filename: str = "volume.nii",
+        keep_volume: bool = False,
+        reorient_to_las: bool = False,
+        disable_conversion_warning: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            reader,
+            image_only,
+            dtype,
+            ensure_channel_first,
+            simple_keys,
+            prune_meta_pattern,
+            prune_meta_sep,
+            expanduser,
+            *args,
+            **kwargs,
+        )
+        self.nifti_filename = nifti_filename
+        self.keep_volume = keep_volume
+        self.reorient_to_las = reorient_to_las
+        self.disable_conversion_warning = disable_conversion_warning
+
+    def __call__(self, dirname: Union[Sequence[PathLike], PathLike], reader=None):
+        if self.disable_conversion_warning:
+            logging.disable(logging.WARNING)
+
+        # Create a volume file if a directory is specified
+        if Path(dirname).is_dir():
+            volume_file = Path(dirname) / self.nifti_filename
+        else:
+            return super().__call__(dirname, reader)
+
+        # If the volume NIfTI file has not been created, generate one under the input directory
+        # Otherwise, read it directly through the nii file.
+        if not volume_file.exists():
+            assert all(
+                [Path(f).suffix == ".dcm" for f in Path(dirname).glob("*")]
+            ), "The directory should contain only DICOM files."
+
+            if not self.keep_volume:
+                temp_dir = tempfile.TemporaryDirectory()
+                volume_file = Path(temp_dir.name) / self.nifti_filename
+
+            _ = dicom2nifti.dicom_series_to_nifti(dirname, volume_file, reorient_nifti=self.reorient_to_las)
+        return super().__call__(filename=volume_file)
+
+
+@require_pkg("dicom2nifti")
+class LoadDicomSliceAsVolumed(LoadImaged):
+    def __init__(
+        self,
+        keys: KeysCollection,
+        reader: Optional[Union[ImageReader, str]] = None,
+        dtype: DtypeLike = np.float32,
+        meta_keys: Optional[KeysCollection] = None,
+        meta_key_postfix: str = DEFAULT_POST_FIX,
+        overwriting: bool = False,
+        image_only: bool = True,
+        ensure_channel_first: bool = False,
+        simple_keys: bool = False,
+        prune_meta_pattern: Optional[str] = None,
+        prune_meta_sep: str = ".",
+        allow_missing_keys: bool = False,
+        expanduser: bool = True,
+        nifti_filename: str = "volume.nii",
+        keep_volume: bool = False,
+        reorient_to_las: bool = False,
+        disable_conversion_warning: bool = False,
+        *args,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            keys,
+            reader,
+            dtype,
+            meta_keys,
+            meta_key_postfix,
+            overwriting,
+            image_only,
+            ensure_channel_first,
+            simple_keys,
+            prune_meta_pattern,
+            prune_meta_sep,
+            allow_missing_keys,
+            expanduser,
+            *args,
+            **kwargs,
+        )
+        self._loader = LoadDicomSliceAsVolume(
+            reader,
+            image_only,
+            dtype,
+            ensure_channel_first,
+            simple_keys,
+            prune_meta_pattern,
+            prune_meta_sep,
+            expanduser,
+            nifti_filename,
+            keep_volume,
+            reorient_to_las,
+            disable_conversion_warning,
+            *args,
+            **kwargs,
+        )
+        self.nifti_filename = nifti_filename
+        self.keep_volume = keep_volume
+        self.reorient_to_las = reorient_to_las
+        self.disable_conversion_warning = disable_conversion_warning
+
+    def __call__(self, data, reader=None):
+        # Make copies of input data dict
+        d = dict(data)
+
+        # Get file extension from input directories
+        suffix_to_data_key = {}
+        for key, dirname in d.items():
+            if Path(dirname).is_dir():
+                _suffix = np.unique([Path(f).suffix for f in Path(dirname).glob("*")])
+                # Skip the directory with a .nii file in it
+                if ".nii" in _suffix:
+                    nii_files = list(Path(dirname).glob("*.nii"))
+                    assert len(nii_files) == 1
+                    d[key] = nii_files[0]
+                    continue
+                else:
+                    assert len(_suffix) == 1
+                    suffix_to_data_key[_suffix[0]] = key
+
+        # If there is no need for volume generation, read files directly.
+        # Otherwise, make sure there is a source directory of dicom files
+        if not suffix_to_data_key:
+            return super().__call__(d, reader)
+        else:
+            assert ".dcm" in suffix_to_data_key.keys(), "There should be a key to directory of dicom files."
+        image_key = suffix_to_data_key[".dcm"]
+        image_files = sorted(Path(d[image_key]).glob("*"))
+        del suffix_to_data_key[".dcm"]
+
+        # Create temp dicom files for labels
+        tempdirs = []
+        for suffix, key in suffix_to_data_key.items():
+            # Test if image and labels are paired
+            label_files = sorted(Path(d[key]).glob("*"))
+            _ = check_image_label_pairing(image_files, label_files, raise_exception=True)
+
+            # Generate temp dicoms
+            temp_dicom_dir = tempfile.TemporaryDirectory(prefix=f"{key}_")
+            tempdirs.append(temp_dicom_dir)
+            for image, label in zip(image_files, label_files):
+                ds = pydicom.dcmread(image)
+                ds.PixelData = np.asarray(Image.open(label)).astype(np.uint16).tobytes()
+                ds.save_as(Path(temp_dicom_dir.name) / image.name)
+
+            # Update label directory
+            d[key] = temp_dicom_dir.name
+
+        # Create sample dict from loader
+        output = super().__call__(d, reader)
+
+        # If keep_volume=True, make a copy of volume nifti file in the original directory
+        if self.keep_volume:
+            for suffix, key in suffix_to_data_key.items():
+                temp_dicom_dir = d[key]
+                temp_volume_file = Path(temp_dicom_dir) / self.nifti_filename
+                dst_volume_file = Path(data[key]) / self.nifti_filename
+                shutil.copyfile(temp_volume_file, dst_volume_file)
+                output[key].meta["filename_or_obj"] = str(dst_volume_file)
+
+        # Clean up temparary directories
+        for temp_dicom_dir in tempdirs:
+            temp_dicom_dir.cleanup()
+        return output
