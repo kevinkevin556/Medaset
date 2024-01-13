@@ -23,10 +23,10 @@ from .base import BaseMixIn
 from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
 
 __all__ = [
-    "AMOSDataset",
+    "AmosDataset",
     "amos_train_transforms",
     "amos_val_transforms",
-    "SimpleAMOSDataset",
+    "SimpleAmosDataset",
     "simple_amos_train_transforms",
     "simple_amos_val_transforms",
 ]
@@ -45,7 +45,7 @@ def get_file_number(filename):
     return int(str(filename).split("_")[-1].split(".")[0])
 
 
-class AMOSDataset(BaseMixIn, CacheDataset):
+class AmosDataset(BaseMixIn, CacheDataset):
     # Dataset info
     num_classes = 16
     max_ct_number = 500
@@ -172,7 +172,7 @@ amos_val_transforms = Compose(
 )
 
 
-class SimpleAMOSDataset(AMOSDataset):
+class SimpleAmosDataset(AmosDataset):
     # Dataset info
     num_classes = 9  # num of AMOS classes - num of excluded classes
     max_ct_number = 500
@@ -219,9 +219,9 @@ simple_amos_train_transforms = Compose(
         BackgroundifyClassesd(
             keys=["label"],
             channel_dim=0,
-            classes=SimpleAMOSDataset.excluded_classes,
+            classes=SimpleAmosDataset.excluded_classes,
         ),
-        ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAMOSDataset.relabelling),
+        ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAmosDataset.relabelling),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),
@@ -259,9 +259,9 @@ simple_amos_val_transforms = Compose(
         BackgroundifyClassesd(
             keys=["label"],
             channel_dim=0,
-            classes=SimpleAMOSDataset.excluded_classes,
+            classes=SimpleAmosDataset.excluded_classes,
         ),
-        ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAMOSDataset.relabelling),
+        ApplyMaskMappingd(keys=["label"], mask_mapping=SimpleAmosDataset.relabelling),
         Spacingd(keys=["image", "label"], pixdim=(1.5, 1.5, 2.0), mode=("bilinear", "nearest")),
         Orientationd(keys=["image", "label"], axcodes="RAS"),
         ScaleIntensityRanged(keys=["image"], a_min=-125, a_max=275, b_min=0.0, b_max=1.0, clip=True),

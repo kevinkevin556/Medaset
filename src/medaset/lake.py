@@ -35,13 +35,13 @@ from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
 from .utils import check_image_label_pairing, generate_dev_subset, split_train_test
 
 __all__ = [
-    "SMATCTDataset",
+    "SmatCtDataset",
     "smat_ct_load_image,",
     "smat_ct_transforms",
-    "SMATMRDataset",
+    "SmatMrDataset",
     "smat_mr_load_image",
     "smat_mr_transforms",
-    "SMATDataset",
+    "SmatDataset",
 ]
 
 
@@ -69,7 +69,7 @@ smat_ct_transforms = Compose(
 )
 
 
-class SMATCTDataset(BaseMixIn, CacheDataset):
+class SmatCtDataset(BaseMixIn, CacheDataset):
     modality = "ct"
 
     def __init__(
@@ -195,7 +195,7 @@ smat_mr_transforms = Compose(
 )
 
 
-class SMATMRDataset(BaseMixIn, CacheDataset):
+class SmatMrDataset(BaseMixIn, CacheDataset):
     max_non_pkd_number = 121
 
     def __init__(
@@ -315,7 +315,7 @@ class SMATMRDataset(BaseMixIn, CacheDataset):
         return super().__getitem__(index)
 
 
-class SMATDataset(SMATCTDataset, SMATMRDataset):
+class SmatDataset(SmatCtDataset, SmatMrDataset):
     num_classes = 4
 
     def __init__(
@@ -334,10 +334,10 @@ class SMATDataset(SMATCTDataset, SMATMRDataset):
         split_ratio: tuple = (0.81, 0.09, 0.1),
         sm_as_whole: bool = True,
     ):
-        if modality in ["CT", "ct"]:
-            SMATCTDataset.__init__(
+        if modality in ["Ct", "ct"]:
+            SmatCtDataset.__init__(
                 self=self,
-                root_dir=os.path.join(root_dir, "CT"),
+                root_dir=os.path.join(root_dir, "Ct"),
                 target=target,
                 stage=stage,
                 transform=transform,
@@ -350,7 +350,7 @@ class SMATDataset(SMATCTDataset, SMATMRDataset):
                 sm_as_whole=sm_as_whole,
             )
         elif modality in ["MR", "mr"]:
-            SMATMRDataset.__init__(
+            SmatMrDataset.__init__(
                 self=self,
                 root_dir=os.path.join(root_dir, "MR"),
                 sequence=sequence,
