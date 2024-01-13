@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 import warnings
 from collections.abc import Mapping, Sequence
 from inspect import signature
@@ -146,34 +147,111 @@ def split_train_test(image_path, target_path, stage, split_ratio, random_seed):
     return image_path, target_path
 
 
-def check_image_label_pairing(image_path, target_path, raise_exception=False):
-    image_name = set([Path(p).stem for p in image_path])
-    image_parent, image_suffix = Path(image_path[0]).parent, Path(image_path[0]).suffix
-    target_name = set([Path(p).stem for p in target_path])
-    target_parent, target_suffix = Path(target_path[0]).parent, Path(target_path[0]).suffix
-    no_target_images = image_name - target_name
-    no_source_labels = target_name - image_name
+def _s2i(s):
+    """
+    Safely converts a string to an integer, returning the integer value if successful,
+    or the original string if conversion fails.
 
-    # Raise exception or remove images if there is no associated label
+    Args:
+        s (str): The input string to be converted to an integer.
+
+    Returns:
+        int or str: If the conversion is successful, returns the integer value.
+                    If the conversion fails, returns the original string without modification.
+    """
+    try:
+        integer_value = int(s)
+        return integer_value
+    except ValueError:
+        return s
+
+
+def check_image_label_pairing(
+    image_path, target_path, raise_exception=False, image_pattern=r"(.*)\..*", target_pattern=r"(.*)\..*"
+):
+    """
+    Check and validate the pairing between image and label files based on provided patterns.
+
+    This function verifies the pairing between image and label files by comparing their file names
+    after applying the specified patterns. It extracts a unique identifier (index) from each file's
+    name using the provided regular expression patterns between parentheses. The function then
+    checks for matching indices between the two lists of files.
+
+    Example:
+        image_path = ["image_1.dcm", "image_2.dcm", "image_3.dcm"]
+        target_path = ["label_1.png", "label_3.png"]
+        check_image_label_pairing(image_path, target_path, raise_exception=True)
+        # This will raise a FileNotFoundError indicating that "image_2.jpg" has no associated label.
+
+    Note:
+        - This function assumes that the provided patterns correctly extract a unique identifier
+          (index) from the file names, allowing it to pair image and label files based on those
+          identifiers.
+        - The patterns should include parentheses to capture the index portion of the file names.
+        - Use caution when setting raise_exception to False, as it will modify the input paths by
+          removing unmatched files.
+
+    Args:
+        image_path (list of str): List of image file paths to be checked.
+        target_path (list of str): List of label file paths to be checked.
+        raise_exception (bool, optional): If True, raise exceptions when discrepancies are found.
+            If False (default), issue warnings and attempt to remove unmatched files.
+        image_pattern (str, optional): Regular expression pattern used to extract information from
+            image file names. Default is '(.*)\..*', which captures the file name without the file extension.
+        target_pattern (str, optional): Regular expression pattern used to extract information from
+            label file names. Default is '(.*)\..*', which captures the file name without the file extension.
+
+    Raises:
+        FileNotFoundError: If there are image files with no associated label files or vice versa.
+            The exception message will contain the list of affected file names.
+        UserWarning: If raise_exception is False and discrepancies are found, warnings will be issued,
+            and unmatched files will be removed from the respective paths.
+
+    Returns:
+        tuple of list of str: A tuple containing the modified image_path and target_path after checking
+        and potentially removing unmatched files.
+
+    """
+    image_name = [Path(p).name for p in image_path]
+    image_parent, image_suffix = Path(image_path[0]).parent, Path(image_path[0]).suffix
+    image_index_to_name = {_s2i(re.search(image_pattern, name).group(1)): name for name in image_name}
+    image_index = set(image_index_to_name.keys())
+
+    target_name = [Path(p).name for p in target_path]
+    target_parent, target_suffix = Path(target_path[0]).parent, Path(target_path[0]).suffix
+    target_index_to_name = {_s2i(re.search(target_pattern, name).group(1)): name for name in target_name}
+    target_index = set(target_index_to_name.keys())
+
+    no_target_images = image_index - target_index
+    no_target_images_name = sorted([image_index_to_name[index] for index in no_target_images])
+    no_source_labels = target_index - image_index
+    no_source_labels_name = sorted([target_index_to_name[index] for index in no_source_labels])
+
+    # Raise exception or remove unmatched images
     if no_target_images:
         if raise_exception:
-            raise FileNotFoundError(f"No associated label of these images: {sorted(no_target_images)}")
+            raise FileNotFoundError(f"No associated label of these images: {no_target_images_name}")
         else:
-            image_path = sorted([str(image_parent / f"{name}{image_suffix}") for name in image_name - no_target_images])
+            image_path = [
+                str(image_parent / f"{image_index_to_name[index]}{image_suffix}")
+                for index in image_index - no_target_images
+            ]
+            image_path.sort()
             warnings.warn(
-                f"Some images are removed due to the lack of associated label: {sorted(no_target_images)}", UserWarning
+                f"Some images are removed due to the lack of associated label: {no_target_images_name}", UserWarning
             )
 
-    # Raise exception or remove labels if there is no associated source image
-    if no_source_labels:
+        # Raise exception or remove unmatched labels
         if raise_exception:
-            raise FileNotFoundError(f"No associated image of these labels: {sorted(no_source_labels)}")
+            raise FileNotFoundError(f"No associated image of these labels: {no_source_labels_name}")
         else:
-            target_path = sorted(
-                [str(target_parent / f"{name}{target_suffix}") for name in target_name - no_source_labels]
-            )
+            target_path = [
+                str(target_parent / f"{target_index_to_name[index][target_suffix]}")
+                for index in target_index - no_source_labels
+            ]
+            target_path.sort()
             warnings.warn(
-                f"Some labels are removed due to the lack of associated image: {sorted(no_source_labels)}", UserWarning
+                f"Some labels are removed due to the lack of associated image: {no_source_labels_name}", UserWarning
             )
 
     return image_path, target_path
