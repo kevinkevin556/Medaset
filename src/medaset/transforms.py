@@ -148,7 +148,10 @@ class LoadDicomSliceAsVolume(LoadImage):
             simple_keys,
             prune_meta_pattern,
             prune_meta_sep,
-            expanduser,
+            # expanduser,
+            #   Note: The `expanduser` argument is introduced in monai 1.2.0.
+            #   Medaset is currently developed under monai 1.0.1, and thus `expanduser`
+            #   is left as comment.
             *args,
             **kwargs,
         )
@@ -203,6 +206,7 @@ class LoadDicomSliceAsVolumed(LoadImaged):
         keep_volume: bool = False,
         reorient_to_las: bool = False,
         disable_conversion_warning: bool = False,
+        index_patterns: Optional[Sequence] = None,
         *args,
         **kwargs,
     ) -> None:
@@ -219,7 +223,10 @@ class LoadDicomSliceAsVolumed(LoadImaged):
             prune_meta_pattern,
             prune_meta_sep,
             allow_missing_keys,
-            expanduser,
+            # expanduser,
+            #   Note: The `expanduser` argument is introduced in monai 1.2.0.
+            #   Medaset is currently developed under monai 1.0.1, and thus `expanduser`
+            #   is left as comment.
             *args,
             **kwargs,
         )
@@ -243,6 +250,10 @@ class LoadDicomSliceAsVolumed(LoadImaged):
         self.keep_volume = keep_volume
         self.reorient_to_las = reorient_to_las
         self.disable_conversion_warning = disable_conversion_warning
+        if index_patterns is None:
+            self.index_patterns = [r"(.*)\..*" for k in self.keys]
+        else:
+            self.index_patterns = index_patterns
 
     def __call__(self, data, reader=None):
         # Make copies of input data dict
@@ -275,17 +286,31 @@ class LoadDicomSliceAsVolumed(LoadImaged):
 
         # Create temp dicom files for labels
         tempdirs = []
+        key_to_pattern = {key: pattern for key, pattern in zip(self.keys, self.index_patterns)}
         for suffix, key in suffix_to_data_key.items():
             # Test if image and labels are paired
             label_files = sorted(Path(d[key]).glob("*"))
-            _ = check_image_label_pairing(image_files, label_files, raise_exception=True)
+            _ = check_image_label_pairing(
+                image_files,
+                label_files,
+                raise_exception=True,
+                image_pattern=key_to_pattern[image_key],
+                target_pattern=key_to_pattern[key],
+            )
 
             # Generate temp dicoms
             temp_dicom_dir = tempfile.TemporaryDirectory(prefix=f"{key}_")
             tempdirs.append(temp_dicom_dir)
             for image, label in zip(image_files, label_files):
                 ds = pydicom.dcmread(image)
-                ds.PixelData = np.asarray(Image.open(label)).astype(np.uint16).tobytes()
+                rs_intercept, rs_slope = float(ds.RescaleIntercept), float(ds.RescaleSlope)
+
+                # Scale the label to obtain the same scale as PixelData
+                # It will be inversed when reading DICOMs during generating volumes
+                label_pixel = np.asarray(Image.open(label))
+                label_data = (label_pixel - rs_intercept) / rs_slope
+
+                ds.PixelData = label_data.astype(np.int16).tobytes()
                 ds.save_as(Path(temp_dicom_dir.name) / image.name)
 
             # Update label directory
