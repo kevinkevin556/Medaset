@@ -303,13 +303,13 @@ class LoadDicomSliceAsVolumed(LoadImaged):
             tempdirs.append(temp_dicom_dir)
             for image, label in zip(image_files, label_files):
                 ds = pydicom.dcmread(image)
-                rs_intercept, rs_slope = float(ds.RescaleIntercept), float(ds.RescaleSlope)
-
                 # Scale the label to obtain the same scale as PixelData
                 # It will be inversed when reading DICOMs during generating volumes
+                rs_intercept = float(getattr(ds, "RescaleIntercept", 0))
+                rs_slope = float(getattr(ds, "RescaleSlope", 1))
                 label_pixel = np.asarray(Image.open(label))
                 label_data = (label_pixel - rs_intercept) / rs_slope
-
+                # Replace the original pixel data with label information and save the modified dicom
                 ds.PixelData = label_data.astype(np.int16).tobytes()
                 ds.save_as(Path(temp_dicom_dir.name) / image.name)
 
