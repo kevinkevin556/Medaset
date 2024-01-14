@@ -212,13 +212,13 @@ def check_image_label_pairing(
         and potentially removing unmatched files.
 
     """
-    image_name = [Path(p).name for p in image_path]
-    image_parent, image_suffix = Path(image_path[0]).parent, Path(image_path[0]).suffix
+    image_name = [str(Path(p).name) for p in image_path]
+    image_parent = Path(image_path[0]).parent
     image_index_to_name = {_s2i(re.search(image_pattern, name).group(1)): name for name in image_name}
     image_index = set(image_index_to_name.keys())
 
-    target_name = [Path(p).name for p in target_path]
-    target_parent, target_suffix = Path(target_path[0]).parent, Path(target_path[0]).suffix
+    target_name = [str(Path(p).name) for p in target_path]
+    target_parent = Path(target_path[0]).parent
     target_index_to_name = {_s2i(re.search(target_pattern, name).group(1)): name for name in target_name}
     target_index = set(target_index_to_name.keys())
 
@@ -232,22 +232,19 @@ def check_image_label_pairing(
         if raise_exception:
             raise FileNotFoundError(f"No associated label of these images: {no_target_images_name}")
         else:
-            image_path = [
-                str(image_parent / f"{image_index_to_name[index]}{image_suffix}")
-                for index in image_index - no_target_images
-            ]
+            image_path = [str(image_parent / image_index_to_name[index]) for index in image_index - no_target_images]
             image_path.sort()
             warnings.warn(
                 f"Some images are removed due to the lack of associated label: {no_target_images_name}", UserWarning
             )
 
-        # Raise exception or remove unmatched labels
+    # Raise exception or remove unmatched labels
+    if no_source_labels:
         if raise_exception:
             raise FileNotFoundError(f"No associated image of these labels: {no_source_labels_name}")
         else:
             target_path = [
-                str(target_parent / f"{target_index_to_name[index][target_suffix]}")
-                for index in target_index - no_source_labels
+                str(target_parent / target_index_to_name[index]) for index in target_index - no_source_labels
             ]
             target_path.sort()
             warnings.warn(
