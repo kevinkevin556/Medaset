@@ -4,7 +4,7 @@ import os
 import warnings
 from glob import glob
 from pathlib import Path
-from typing import Final, Literal, Sequence, Tuple, Union
+from typing import Dict, Final, Literal, Optional, Sequence, Tuple, Union
 
 import cv2
 import numpy as np
@@ -59,9 +59,9 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
     def __init__(
         self,
         root_dir: str,
-        stage: Literal["train", "validation", "test"] = None,
-        transform: MonaiTransform = None,
-        mask_mapping: dict = None,
+        stage: Optional[Literal["train", "validation", "test"]] = None,
+        transform: Optional[MonaiTransform] = None,
+        mask_mapping: Optional[dict] = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,
@@ -119,7 +119,10 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
         # Initialize as Monai CacheDataset
         CacheDataset.__init__(
             self,
-            data=[{"image": im, "label": la, "modality": "ct"} for im, la in zip(self.image_path, self.target_path)],
+            data=[
+                {"image": im, "label": la, "modality": self.modality}
+                for im, la in zip(self.image_path, self.target_path)
+            ],
             transform=transform,
             cache_rate=cache_rate,
             num_workers=num_workers,
@@ -132,26 +135,42 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
         return super().__getitem__(index)
 
 
+chaos_t2spir_transforms = Compose(
+    [
+        LoadDicomSliceAsVolumed(
+            keys=["image", "label"],
+            keep_volume=False,
+            disable_conversion_warning=True,
+        ),
+        EnsureChannelFirstd(keys=["image", "label"], channel_dim="no_channel"),
+        ToTensord(keys=["image", "label"]),
+    ]
+)
+
+
 class ChaosT2spirDataset(BaseMixIn, CacheDataset):
     def __init__(
         self,
         root_dir: str,
-        stage: Literal["train", "validation", "test"] = None,
-        transform: MonaiTransform = None,
-        mask_mapping: dict = None,
+        stage: Optional[Literal["train", "validation", "test"]] = None,
+        transform: Optional[MonaiTransform] = None,
+        mask_mapping: Optional[dict] = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,
         random_seed: int = 42,
         split_ratio: Tuple[float] = (0.81, 0.09, 0.1),
         *,
-        class_info: dict = dict(
-            background={"value": 0, "color": "#000000", "mask_value": 0},
-            liver={"value": 255, "color": "#FFFFFF", "mask_value": 1},
-        ),
+        class_info: dict = {
+            "background": {"value": 0, "color": "#000000", "mask_value": 0},
+            "liver": {"value": 63, "color": "#891e2c", "mask_value": 1},
+            "right kidney": {"value": 126, "color": "#2c5f96", "mask_value": 2},
+            "left kidney": {"value": 189, "color": "#609fc3", "mask_value": 3},
+            "spleen": {"value": 252, "color": "#dcab3d", "mask_value": 4},
+        },
     ):
         # Dataset info
-        self.modality: Final = "ct"
+        self.modality: Final = "mr:t2-spir"
         self.class_info = class_info
         self.num_classes: Final = len(self.class_info)
         self.stage: Final = stage
@@ -164,9 +183,9 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
             num_classes=self.num_classes,
             mask_mapping=mask_mapping,
         )
-        for sample_dir in sorted((Path(root_dir) / "CT").glob("*")):
-            self.image_path.append(str(Path(sample_dir) / "DICOM_anon"))
-            self.target_path.append(str(Path(sample_dir) / "Ground"))
+        for sample_dir in sorted((Path(root_dir) / "MR").glob("*")):
+            self.image_path.append(str(Path(sample_dir) / "T2SPIR" / "DICOM_anon"))
+            self.target_path.append(str(Path(sample_dir) / "T2SPIR" / "Ground"))
 
         # Train-test split (if required)
         self.image_path, self.target_path = split_train_test(
@@ -187,16 +206,19 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
         if isinstance(transform, MonaiTransform):
             transform = Compose([transform, label_to_integer, mask_mapping_transform])
         elif stage == "train":
-            transform = Compose([chaos_ct_transforms, label_to_integer, mask_mapping_transform])
+            transform = Compose([chaos_t2spir_transforms, label_to_integer, mask_mapping_transform])
         elif (stage == "validation") or (stage == "test"):
-            transform = Compose([chaos_ct_transforms, label_to_integer, mask_mapping_transform])
+            transform = Compose([chaos_t2spir_transforms, label_to_integer, mask_mapping_transform])
         else:
             raise ValueError("Either stage or transform should be specified.")
 
         # Initialize as Monai CacheDataset
         CacheDataset.__init__(
             self,
-            data=[{"image": im, "label": la, "modality": "ct"} for im, la in zip(self.image_path, self.target_path)],
+            data=[
+                {"image": im, "label": la, "modality": self.modality}
+                for im, la in zip(self.image_path, self.target_path)
+            ],
             transform=transform,
             cache_rate=cache_rate,
             num_workers=num_workers,
