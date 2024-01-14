@@ -24,12 +24,17 @@ pip install -e .
 
 ## Currently Supported Datasets
 
-* **AMOS (Abdominal Multi-Organ Segmentation)**
-    * Grand Challenge: [https://amos22.grand-challenge.org/](https://amos22.grand-challenge.org/)
-    * Arxiv: [https://arxiv.org/abs/2206.08023](https://arxiv.org/abs/2206.08023)
+* **AMOS (Abdominal Multi-Organ Segmentation)** <br>[[Grand Challenge]](https://amos22.grand-challenge.org/) [[Arxiv]](https://arxiv.org/abs/2206.08023)
+    * AMOS provides 500 CT and 100 MRI scans collected from multi-center, multi-vendor, multi-modality, multi-phase, multi-disease patients, each with voxel-level annotations of 15 abdominal organs.
+    * Structure: spleen, right kidney, left kidney, gallbladder, esophagus, liver, stomach, aorta, inferior vena cava, pancreas, right adrenal gland, left adrenal gland, duodenum, bladder, prostate/uterus.
+    * Dataset classes: `AmosDataset`, `SimpleAmosDataset`
+* **CHAOS (Combined (CT-MR) Healthy Abdominal Organ Segmentation)** <br>[[Grand Challenge]](https://chaos.grand-challenge.org/) [[Arxiv]](https://arxiv.org/abs/2001.06535)
+    * The CHAOS challenge data contains 40 CT scans and 40 MR scans of upper abdomen area.
+    * Structure (Modality): Liver (CT/MR), Kidneys (MR), Spleen (MR)
+    * Dataset classes: `ChaosCtDataset`, `ChaosT2spirDataset` (The T1-DUAL sequence is not suppored currently)
 * **SMAT (Skeletal Muscle and Adipose Tissue)**
     * Private dataset
-
+    * Dataset classes: `SmatCtDataset`, `SmatMrDataset`, `SmatDataset`
 
 ## Useful Links
 
