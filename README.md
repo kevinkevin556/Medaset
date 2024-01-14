@@ -32,7 +32,7 @@ pip install -e .
 * **CHAOS (Combined (CT-MR) Healthy Abdominal Organ Segmentation)** <br>[[Grand Challenge]](https://chaos.grand-challenge.org/) [[Arxiv]](https://arxiv.org/abs/2001.06535)
     * The CHAOS challenge data contains 40 CT scans and 40 MR scans of upper abdomen area.
     * Structure (Modality): Liver (CT/MR), Kidneys (MR), Spleen (MR)
-    * Dataset classes: `ChaosCtDataset`, `ChaosT2spirDataset` (The T1-DUAL sequence is not suppored currently)
+    * Dataset classes: `ChaosCtDataset`, `ChaosT2spirDataset` (The T1-DUAL sequence is not supported currently)
     ---
 * **SMAT (Skeletal Muscle and Adipose Tissue)**
     * Private dataset
