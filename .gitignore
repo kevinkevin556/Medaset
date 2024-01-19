@@ -6,6 +6,13 @@ __pycache__/
 # C extensions
 *.so
 
+# Commitlint
+package.json
+package-lock.json
+.husky/
+node_modules/
+commitlint.config.js
+
 # Distribution / packaging
 .Python
 build/
