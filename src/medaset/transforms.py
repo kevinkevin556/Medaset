@@ -70,7 +70,7 @@ class BackgroundifyClasses(Transform):
 
     def __init__(self, channel_dim: int, classes: list) -> None:
         self.channel_dim = channel_dim
-        self.classes = torch.tensor(classes)
+        self.classes = torch.as_tensor(classes)
 
     def __call__(self, img) -> torch.Tensor:
         n_channels = img.shape[self.channel_dim]
