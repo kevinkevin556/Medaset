@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import os
-from collections.abc import tuple
+from collections.abc import Sequence, Tuple
 from pathlib import Path
-from typing import Final, Literal, Optional, Sequence, Tuple, Union
+from typing import Final, Literal, Union
 
 from monai.data import CacheDataset
 from monai.transforms import Compose, EnsureChannelFirstd, ToTensord
@@ -105,9 +105,6 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
     def __len__(self) -> int:
         return len(self.target_path)
 
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
-        return super().__getitem__(index)
-
 
 chaos_t2spir_transforms = Compose(
     [
@@ -200,6 +197,3 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
 
     def __len__(self) -> int:
         return len(self.target_path)
-
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
-        return super().__getitem__(index)

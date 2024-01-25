@@ -1,28 +1,21 @@
+from __future__ import annotations
+
 import logging
-import math
 import os
 import warnings
+from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Sequence, Tuple, Union
+from typing import Literal, Union
 
 import cv2
-import numpy as np
-import numpy.random as random
 from monai.data import CacheDataset, PydicomReader
 from monai.transforms import (
     Compose,
     CropForegroundd,
     EnsureChannelFirstd,
     LoadImaged,
-    NormalizeIntensityd,
-    Orientationd,
-    RandAffined,
-    RandCropByPosNegLabeld,
-    RandShiftIntensityd,
     Resized,
-    ResizeWithPadOrCropd,
     ScaleIntensityRanged,
-    Spacingd,
     SpatialCropd,
     SpatialPadd,
     ToTensord,
@@ -31,7 +24,7 @@ from monai.transforms import Transform as MonaiTransform
 
 from .base import BaseMixIn
 from .image_readers import CV2Reader
-from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
+from .transforms import ApplyMaskMappingd
 from .utils import check_image_label_pairing, generate_dev_subset, split_train_test
 
 __all__ = [
@@ -83,7 +76,7 @@ class SmatCtDataset(BaseMixIn, CacheDataset):
         cache_rate: float = 1,
         num_workers: int = 2,
         random_seed: int = 42,
-        split_ratio: Tuple[float] = (0.81, 0.09, 0.1),
+        split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         sm_as_whole: bool = False,
     ):
         # Class information
@@ -137,7 +130,7 @@ class SmatCtDataset(BaseMixIn, CacheDataset):
             _transform = [transform, label_to_integer]
         elif stage == "train":
             _transform = [smat_ct_transforms, label_to_integer]
-        elif (stage == "validation") or (stage == "test"):
+        elif stage in {"validation", "test"}:
             _transform = [smat_ct_transforms, label_to_integer]
         else:
             raise ValueError("Either stage or transform should be specified.")
@@ -203,14 +196,14 @@ class SmatMrDataset(BaseMixIn, CacheDataset):
         root_dir: str,
         sequence: Literal["w", "f", "in", "op", "pdff"] = "pdff",
         target: Literal["vat", "tsm", "sat", "all"] = "all",
-        stage: Literal["train", "validation", "test"] = None,
-        transform: MonaiTransform = None,
+        stage: Literal["train", "validation", "test"] | None = None,
+        transform: MonaiTransform | None = None,
         mask_mapping: dict = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,
         random_seed: int = 42,
-        split_ratio: Tuple[float] = (0.81, 0.09, 0.1),
+        split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         pkd_only: bool = False,
         non_pkd_only: bool = True,
     ):
@@ -323,10 +316,10 @@ class SmatDataset(SmatCtDataset, SmatMrDataset):
         root_dir: str,
         modality: str,
         target: Literal["vat", "tsm", "sat", "all"] = "all",
-        stage: Literal["train", "validation", "test"] = "train",
+        stage: Literal["train", "validation", "test"] | None = "train",
         sequence: Literal["w", "f", "in", "op", "pdff"] = "pdff",
-        transform: MonaiTransform = None,
-        mask_mapping: dict = None,
+        transform: MonaiTransform | None = None,
+        mask_mapping: dict | None = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,
