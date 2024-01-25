@@ -1,7 +1,8 @@
+from __future__ import annotations
+
 import json
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Optional, Union
 
 import matplotlib.pyplot as plt
 import nibabel as nib
@@ -16,13 +17,13 @@ from .utils import apply_window, get_file_paths, get_paths_from_json, read_image
 class BaseMixIn:
     def __init__(
         self,
-        image_dir: Optional[Sequence] = None,
-        target_dir: Optional[Sequence] = None,
-        root_dir: Optional[str] = None,
-        dataset_json: Optional[Sequence] = None,
-        num_classes: Optional[int] = -1,
-        cmap: Optional[Union[str, ListedColormap]] = None,
-        mask_mapping: Optional[dict] = None,
+        image_dir: Sequence | None = None,
+        target_dir: Sequence | None = None,
+        root_dir: str | None = None,
+        dataset_json: Sequence | None = None,
+        num_classes: int | None = -1,
+        cmap: str | ListedColormap | None = None,
+        mask_mapping: dict | None = None,
     ):
         assert (image_dir is not None) or (
             dataset_json is not None
@@ -50,10 +51,10 @@ class BaseMixIn:
     def plot(
         self,
         index: int,
-        figsize: Union[int, tuple] = (6, 3),
+        figsize: int | tuple = (6, 3),
         dpi: int = 100,
-        window: Optional[tuple] = None,
-        cmap: Union[str, ListedColormap] = None,
+        window: tuple | None = None,
+        cmap: str | ListedColormap | None = None,
     ):
         sample = self[index]
         if isinstance(sample, tuple):
@@ -77,9 +78,8 @@ class BaseMixIn:
         fig.suptitle(Path(self.image_path[index]).name)
         return fig, ax
 
-    def nnunet_format(
-        self, id, name, channel_names, labels={"background": 0, "1": 1}, root_dir="./data/nnUNet/nnUNet_raw"
-    ):
+    def nnunet_format(self, idx, name, channel_names, labels=None, root_dir="./data/nnUNet/nnUNet_raw"):
+        labels = {"background": 0, "1": 1} if not labels else labels
         dataset_json = {
             "name": name,
             "channel_names": channel_names,
@@ -90,7 +90,7 @@ class BaseMixIn:
         }
 
         # Create destination directory
-        src_dir = Path(root_dir) / f"Dataset{str(id).rjust(3, '0')}_{name}"
+        src_dir = Path(root_dir) / f"Dataset{str(idx).rjust(3, '0')}_{name}"
         src_dir.mkdir(parents=True, exist_ok=True)
         (src_dir / "imagesTr").mkdir(parents=True, exist_ok=True)
         (src_dir / "labelsTr").mkdir(parents=True, exist_ok=True)

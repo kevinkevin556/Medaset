@@ -1,42 +1,16 @@
-import logging
-import math
-import os
-import warnings
-from glob import glob
-from pathlib import Path
-from typing import Dict, Final, Literal, Optional, Sequence, Tuple, Union
+from __future__ import annotations
 
-import cv2
-import numpy as np
-import numpy.random as random
-from monai.data import CacheDataset, PydicomReader
-from monai.transforms import (
-    Compose,
-    CropForegroundd,
-    EnsureChannelFirstd,
-    LoadImaged,
-    NormalizeIntensityd,
-    Orientationd,
-    RandAffined,
-    RandCropByPosNegLabeld,
-    RandShiftIntensityd,
-    Resized,
-    ResizeWithPadOrCropd,
-    ScaleIntensityRanged,
-    Spacingd,
-    SpatialCropd,
-    SpatialPadd,
-    ToTensord,
-)
+import os
+from collections.abc import tuple
+from pathlib import Path
+from typing import Final, Literal, Optional, Sequence, Tuple, Union
+
+from monai.data import CacheDataset
+from monai.transforms import Compose, EnsureChannelFirstd, ToTensord
 from monai.transforms import Transform as MonaiTransform
 
 from .base import BaseMixIn
-from .image_readers import CV2Reader
-from .transforms import (
-    ApplyMaskMappingd,
-    BackgroundifyClassesd,
-    LoadDicomSliceAsVolumed,
-)
+from .transforms import ApplyMaskMappingd, LoadDicomSliceAsVolumed
 from .utils import generate_dev_subset, split_train_test
 
 __all__ = []
@@ -59,14 +33,14 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
     def __init__(
         self,
         root_dir: str,
-        stage: Optional[Literal["train", "validation", "test"]] = None,
-        transform: Optional[MonaiTransform] = None,
-        mask_mapping: Optional[dict] = None,
+        stage: Literal["train", "validation", "test"] | None = None,
+        transform: MonaiTransform | None = None,
+        mask_mapping: dict | None = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,
         random_seed: int = 42,
-        split_ratio: Tuple[float] = (0.81, 0.09, 0.1),
+        split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         *,
         class_info: dict = dict(
             background={"value": 0, "color": "#000000", "mask_value": 0},
@@ -111,7 +85,7 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
             transform = Compose([transform, label_to_integer, mask_mapping_transform])
         elif stage == "train":
             transform = Compose([chaos_ct_transforms, label_to_integer, mask_mapping_transform])
-        elif (stage == "validation") or (stage == "test"):
+        elif stage in {"validation", "test"}:
             transform = Compose([chaos_ct_transforms, label_to_integer, mask_mapping_transform])
         else:
             raise ValueError("Either stage or transform should be specified.")
@@ -152,9 +126,9 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
     def __init__(
         self,
         root_dir: str,
-        stage: Optional[Literal["train", "validation", "test"]] = None,
-        transform: Optional[MonaiTransform] = None,
-        mask_mapping: Optional[dict] = None,
+        stage: Literal["train", "validation", "test"] | None = None,
+        transform: MonaiTransform | None = None,
+        mask_mapping: dict | None = None,
         dev: bool = False,
         cache_rate: float = 1,
         num_workers: int = 2,

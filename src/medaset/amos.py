@@ -20,15 +20,12 @@ from monai.transforms import (
 from monai.transforms import Transform as MonaiTransform
 
 from .base import BaseMixIn
-from .transforms import ApplyMaskMappingd, BackgroundifyClassesd
+from .transforms import ApplyMaskMappingd
 
 __all__ = [
     "AmosDataset",
     "amos_train_transforms",
     "amos_val_transforms",
-    "SimpleAmosDataset",
-    "simple_amos_train_transforms",
-    "simple_amos_val_transforms",
 ]
 
 
@@ -42,7 +39,7 @@ spatial_size = (96, 96, 96)
 
 
 def get_file_number(filename):
-    return int(str(filename).split("_")[-1].split(".")[0])
+    return int(str(filename).rsplit("_", maxsplit=1)[-1].split(".", maxsplit=1)[0])
 
 
 class AmosDataset(BaseMixIn, CacheDataset):
@@ -103,7 +100,7 @@ class AmosDataset(BaseMixIn, CacheDataset):
             transform = Compose([transform, mask_mapping_transform])
         elif stage == "train":
             transform = Compose([amos_train_transforms, mask_mapping_transform])
-        elif (stage == "validation") or (stage == "test"):
+        elif stage in {"validation", "test"}:
             transform = Compose([amos_val_transforms, mask_mapping_transform])
         else:
             raise ValueError("Either stage or transform should be specified.")
