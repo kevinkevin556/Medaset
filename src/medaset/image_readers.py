@@ -33,6 +33,6 @@ class CV2Reader(ImageReader):
 
     def verify_suffix(self, filename: PathLike | Sequence[PathLike]) -> bool:
         if isinstance(filename, (list, tuple)):
-            return all(Path(f).suffix in (".png", "jpg") for f in filename)
+            return all(Path(f).suffix in {".png", "jpg"} for f in filename)
         else:
             return Path(filename).suffix in {".png", ".jpg"}

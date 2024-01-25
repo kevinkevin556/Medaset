@@ -104,7 +104,7 @@ def get_paths_from_json(json_path, root_dir=None):
     return image_path, target_path
 
 
-def apply_window(image: ArrayLike, min: int, max: int) -> ArrayLike:
+def apply_window(image: ArrayLike, min_val: int, max_val: int) -> ArrayLike:
     """Set window to a (CT) image, i.e. only values in the range of window
     are preserved. Values are assigned the min value if they are less than lower bound (min)
     of the window or the max value if they are greater than the upper bound (max) of the window.
@@ -117,8 +117,8 @@ def apply_window(image: ArrayLike, min: int, max: int) -> ArrayLike:
     Returns:
         ArrayLike: the transformed image
     """
-    image[image < min] = min
-    image[image > max] = max
+    image[image < min_val] = min_val
+    image[image > max_val] = max_val
     return image
 
 

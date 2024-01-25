@@ -83,15 +83,15 @@ class SmatCtDataset(BaseMixIn, CacheDataset):
         self.target = target
         self.stage = stage
         if target == "all":
-            self.class_info = dict(
-                background={"value": 0, "color": "#000000", "mask_value": 0},
-                ra={"value": 255, "color": "#25CED1", "mask_value": 1},
-                vat={"value": 227, "color": "#777777", "mask_value": 2},
-                ps={"value": 199, "color": "#FEEFE5", "mask_value": 3},
-                sat={"value": 170, "color": "#555555", "mask_value": 4},
-                pm={"value": 142, "color": "#FFCF00", "mask_value": 5},
-                aw={"value": 85, "color": "#EE6123", "mask_value": 6},
-            )
+            self.class_info = {
+                "background": {"value": 0, "color": "#000000", "mask_value": 0},
+                "ra": {"value": 255, "color": "#25CED1", "mask_value": 1},
+                "vat": {"value": 227, "color": "#777777", "mask_value": 2},
+                "ps": {"value": 199, "color": "#FEEFE5", "mask_value": 3},
+                "sat": {"value": 170, "color": "#555555", "mask_value": 4},
+                "pm": {"value": 142, "color": "#FFCF00", "mask_value": 5},
+                "aw": {"value": 85, "color": "#EE6123", "mask_value": 6},
+            }
             self.num_classes = 7
         else:
             self.class_info = {
@@ -221,12 +221,12 @@ class SmatMrDataset(BaseMixIn, CacheDataset):
             _images.append(list(files))
 
         if target == "all":
-            self.class_info = dict(
-                background={"value": 0, "color": "#000000", "mask_value": 0},
-                tsm={"value": 85, "color": "#EE6123", "mask_value": 1},
-                vat={"value": 255, "color": "#FEEFE5", "mask_value": 2},
-                sat={"value": 170, "color": "#25CED1", "mask_value": 3},
-            )
+            self.class_info = {
+                "background": {"value": 0, "color": "#000000", "mask_value": 0},
+                "tsm": {"value": 85, "color": "#EE6123", "mask_value": 1},
+                "vat": {"value": 255, "color": "#FEEFE5", "mask_value": 2},
+                "sat": {"value": 170, "color": "#25CED1", "mask_value": 3},
+            }
             self.num_classes = 4
         else:
             self.class_info = {
@@ -245,7 +245,7 @@ class SmatMrDataset(BaseMixIn, CacheDataset):
         )
 
         # Check whether images match label
-        assert (pkd_only and non_pkd_only) == False, "pkd_only and non_pkd_only can't be true at the same time."
+        assert not (pkd_only and non_pkd_only), "pkd_only and non_pkd_only can't be true at the same time."
         if non_pkd_only:
             self.image_path = self.image_path[: self.max_non_pkd_number]
             self.target_path = self.target_path[: self.max_non_pkd_number]

@@ -4,6 +4,7 @@ import os
 from pathlib import Path
 from typing import Final, Literal
 
+from frozendict import frozendict
 from monai.data import CacheDataset
 from monai.transforms import Compose, EnsureChannelFirstd, ToTensord
 from monai.transforms import Transform as MonaiTransform
@@ -41,7 +42,7 @@ class ChaosCtDataset(BaseMixIn, CacheDataset):
         random_seed: int = 42,
         split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         *,
-        class_info: dict = dict(
+        class_info: dict = frozendict(
             background={"value": 0, "color": "#000000", "mask_value": 0},
             liver={"value": 255, "color": "#FFFFFF", "mask_value": 1},
         ),
@@ -131,13 +132,13 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
         random_seed: int = 42,
         split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         *,
-        class_info: dict = {
-            "background": {"value": 0, "color": "#000000", "mask_value": 0},
-            "liver": {"value": 63, "color": "#891e2c", "mask_value": 1},
-            "right kidney": {"value": 126, "color": "#2c5f96", "mask_value": 2},
-            "left kidney": {"value": 189, "color": "#609fc3", "mask_value": 3},
-            "spleen": {"value": 252, "color": "#dcab3d", "mask_value": 4},
-        },
+        class_info: dict = frozendict(
+            background={"value": 0, "color": "#000000", "mask_value": 0},
+            liver={"value": 63, "color": "#891e2c", "mask_value": 1},
+            right_kidney={"value": 126, "color": "#2c5f96", "mask_value": 2},
+            left_kidney={"value": 189, "color": "#609fc3", "mask_value": 3},
+            spleen={"value": 252, "color": "#dcab3d", "mask_value": 4},
+        ),
     ):
         # Dataset info
         self.modality: Final = "mr:t2-spir"

@@ -81,8 +81,8 @@ class BackgroundifyClasses(Transform):
         # E.g. ix_bg = (0, slice(None), slice(None)) for the background of image = img[0, :, :] when dim = 0
         #      ix_cls = (slice(None), self.classes, slice(None), slice(None))
         #      for the merging classes = img[:, classes, :, :] when dim = 1
-        ix_bg = tuple([0 if (d == self.dim) else slice(None) for d in range(len(img.shape))])
-        ix_cls = tuple([self.classes if (d == self.dim) else slice(None) for d in range(len(img.shape))])
+        ix_bg = [0 if (d == self.dim) else slice(None) for d in range(len(img.shape))]
+        ix_cls = [self.classes if (d == self.dim) else slice(None) for d in range(len(img.shape))]
         img_t = torch.Tensor(img)
 
         # If n_channels == 1, the input tensor stores labels.
@@ -127,6 +127,7 @@ class BackgroundifyClassesd(MapTransform):
 class LoadDicomSliceAsVolume(LoadImage):
     def __init__(
         self,
+        *args,
         reader=None,
         image_only: bool = True,
         dtype: DtypeLike | None = np.float32,
@@ -139,7 +140,6 @@ class LoadDicomSliceAsVolume(LoadImage):
         keep_volume: bool = False,
         reorient_to_las: bool = False,
         disable_conversion_warning: bool = False,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -176,7 +176,7 @@ class LoadDicomSliceAsVolume(LoadImage):
         # Otherwise, read it directly through the nii file.
         if not volume_file.exists():
             assert all(
-                [Path(f).suffix == ".dcm" for f in Path(dirname).glob("*")]
+                Path(f).suffix == ".dcm" for f in Path(dirname).glob("*")
             ), "The directory should contain only DICOM files."
 
             if not self.keep_volume:
@@ -191,6 +191,7 @@ class LoadDicomSliceAsVolume(LoadImage):
 class LoadDicomSliceAsVolumed(LoadImaged):
     def __init__(
         self,
+        *args,
         keys: KeysCollection,
         reader: ImageReader | str | None = None,
         dtype: DtypeLike = np.float32,
@@ -209,7 +210,6 @@ class LoadDicomSliceAsVolumed(LoadImaged):
         reorient_to_las: bool = False,
         disable_conversion_warning: bool = False,
         index_patterns: Sequence | None = None,
-        *args,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -288,8 +288,8 @@ class LoadDicomSliceAsVolumed(LoadImaged):
 
         # Create temp dicom files for labels
         tempdirs = []
-        key_to_pattern = {key: pattern for key, pattern in zip(self.keys, self.index_patterns)}
-        for suffix, key in suffix_to_data_key.items():
+        key_to_pattern = dict(zip(self.keys, self.index_patterns))
+        for _, key in suffix_to_data_key.items():
             # Test if image and labels are paired
             label_files = sorted(Path(d[key]).glob("*"))
             _ = check_image_label_pairing(
