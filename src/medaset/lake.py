@@ -5,7 +5,7 @@ import os
 import warnings
 from collections.abc import Sequence
 from pathlib import Path
-from typing import Literal, Union
+from typing import Literal
 
 import cv2
 from monai.data import CacheDataset, PydicomReader
@@ -29,7 +29,7 @@ from .utils import check_image_label_pairing, generate_dev_subset, split_train_t
 
 __all__ = [
     "SmatCtDataset",
-    "smat_ct_load_image,",
+    "smat_ct_load_image",
     "smat_ct_transforms",
     "SmatMrDataset",
     "smat_mr_load_image",
@@ -158,7 +158,7 @@ class SmatCtDataset(BaseMixIn, CacheDataset):
     def __len__(self) -> int:
         return len(self.target_path)
 
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+    def __getitem__(self, index: int | slice | Sequence[int]):
         # Suppress CV2Reader "unable to load" exceptions for DICOM files
         logging.disable(logging.CRITICAL)
         return super().__getitem__(index)
@@ -285,7 +285,7 @@ class SmatMrDataset(BaseMixIn, CacheDataset):
             transform = Compose([transform, label_to_integer, mask_mapping_transform])
         elif stage == "train":
             transform = Compose([smat_mr_transforms, label_to_integer, mask_mapping_transform])
-        elif (stage == "validation") or (stage == "test"):
+        elif stage in {"validation", "test"}:
             transform = Compose([smat_mr_transforms, label_to_integer, mask_mapping_transform])
         else:
             raise ValueError("Either stage or transform should be specified.")
@@ -302,7 +302,7 @@ class SmatMrDataset(BaseMixIn, CacheDataset):
             num_workers=num_workers,
         )
 
-    def __getitem__(self, index: Union[int, slice, Sequence[int]]):
+    def __getitem__(self, index: int | slice | Sequence[int]):
         # Suppress CV2Reader "unable to load" exceptions for DICOM files
         logging.disable(logging.CRITICAL)
         return super().__getitem__(index)
@@ -327,7 +327,7 @@ class SmatDataset(SmatCtDataset, SmatMrDataset):
         split_ratio: tuple = (0.81, 0.09, 0.1),
         sm_as_whole: bool = True,
     ):
-        if modality in ["Ct", "ct"]:
+        if modality in {"Ct", "ct"}:
             SmatCtDataset.__init__(
                 self=self,
                 root_dir=os.path.join(root_dir, "Ct"),
@@ -342,7 +342,7 @@ class SmatDataset(SmatCtDataset, SmatMrDataset):
                 split_ratio=split_ratio,
                 sm_as_whole=sm_as_whole,
             )
-        elif modality in ["MR", "mr"]:
+        elif modality in {"MR", "mr"}:
             SmatMrDataset.__init__(
                 self=self,
                 root_dir=os.path.join(root_dir, "MR"),

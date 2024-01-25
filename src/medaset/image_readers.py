@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence, tuple
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +17,7 @@ class CV2Reader(ImageReader):
     def get_data(self, img) -> tuple[ndarray, dict]:
         return img, {}
 
-    def read(self, data: PathLike + Sequence[PathLike], **kwargs) -> Sequence[Any] | Any:
+    def read(self, data: PathLike | Sequence[PathLike]) -> Sequence[Any] | Any:
         if not isinstance(data, (list, tuple)):
             data = [data]
 
@@ -33,6 +33,6 @@ class CV2Reader(ImageReader):
 
     def verify_suffix(self, filename: PathLike | Sequence[PathLike]) -> bool:
         if isinstance(filename, (list, tuple)):
-            return all([Path(f).suffix in (".png", "jpg") for f in filename])
+            return all(Path(f).suffix in (".png", "jpg") for f in filename)
         else:
-            return Path(filename).suffix in (".png", ".jpg")
+            return Path(filename).suffix in {".png", ".jpg"}

@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import shutil
 import tempfile
+from collections.abc import Hashable, Mapping, Sequence
 from pathlib import Path
-from typing import Dict, Hashable, Mapping, Optional, Sequence, Union
 
 import dicom2nifti
 import numpy as np
@@ -31,7 +33,7 @@ DEFAULT_POST_FIX = PostFix.meta()
 
 
 class ApplyMaskMapping(Transform):
-    def __init__(self, mask_mapping: Optional[dict] = None) -> None:
+    def __init__(self, mask_mapping: dict | None = None) -> None:
         self.mask_mapping = mask_mapping
 
     def __call__(self, mask) -> torch.Tensor:
@@ -55,7 +57,7 @@ class ApplyMaskMappingd(MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.mask_mapper = ApplyMaskMapping(mask_mapping)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.mask_mapper(d[key])
@@ -114,7 +116,7 @@ class BackgroundifyClassesd(MapTransform):
         MapTransform.__init__(self, keys, allow_missing_keys)
         self.backgroundifier = BackgroundifyClasses(channel_dim, classes)
 
-    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> Dict[Hashable, torch.Tensor]:
+    def __call__(self, data: Mapping[Hashable, torch.Tensor]) -> dict[Hashable, torch.Tensor]:
         d = dict(data)
         for key in self.key_iterator(d):
             d[key] = self.backgroundifier(d[key])
@@ -127,10 +129,10 @@ class LoadDicomSliceAsVolume(LoadImage):
         self,
         reader=None,
         image_only: bool = True,
-        dtype: Optional[DtypeLike] = np.float32,
+        dtype: DtypeLike | None = np.float32,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         expanduser: bool = True,
         nifti_filename: str = "volume.nii",
@@ -160,7 +162,7 @@ class LoadDicomSliceAsVolume(LoadImage):
         self.reorient_to_las = reorient_to_las
         self.disable_conversion_warning = disable_conversion_warning
 
-    def __call__(self, dirname: Union[Sequence[PathLike], PathLike], reader=None):
+    def __call__(self, dirname: Sequence[PathLike] | PathLike, reader=None):
         if self.disable_conversion_warning:
             logging.disable(logging.WARNING)
 
@@ -190,15 +192,15 @@ class LoadDicomSliceAsVolumed(LoadImaged):
     def __init__(
         self,
         keys: KeysCollection,
-        reader: Optional[Union[ImageReader, str]] = None,
+        reader: ImageReader | str | None = None,
         dtype: DtypeLike = np.float32,
-        meta_keys: Optional[KeysCollection] = None,
+        meta_keys: KeysCollection | None = None,
         meta_key_postfix: str = DEFAULT_POST_FIX,
         overwriting: bool = False,
         image_only: bool = True,
         ensure_channel_first: bool = False,
         simple_keys: bool = False,
-        prune_meta_pattern: Optional[str] = None,
+        prune_meta_pattern: str | None = None,
         prune_meta_sep: str = ".",
         allow_missing_keys: bool = False,
         expanduser: bool = True,
@@ -206,7 +208,7 @@ class LoadDicomSliceAsVolumed(LoadImaged):
         keep_volume: bool = False,
         reorient_to_las: bool = False,
         disable_conversion_warning: bool = False,
-        index_patterns: Optional[Sequence] = None,
+        index_patterns: Sequence | None = None,
         *args,
         **kwargs,
     ) -> None:

@@ -1,9 +1,8 @@
 from __future__ import annotations
 
 import os
-from collections.abc import Sequence, Tuple
 from pathlib import Path
-from typing import Final, Literal, Union
+from typing import Final, Literal
 
 from monai.data import CacheDataset
 from monai.transforms import Compose, EnsureChannelFirstd, ToTensord
@@ -130,7 +129,7 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
         cache_rate: float = 1,
         num_workers: int = 2,
         random_seed: int = 42,
-        split_ratio: Tuple[float] = (0.81, 0.09, 0.1),
+        split_ratio: tuple[float] = (0.81, 0.09, 0.1),
         *,
         class_info: dict = {
             "background": {"value": 0, "color": "#000000", "mask_value": 0},
@@ -178,7 +177,7 @@ class ChaosT2spirDataset(BaseMixIn, CacheDataset):
             transform = Compose([transform, label_to_integer, mask_mapping_transform])
         elif stage == "train":
             transform = Compose([chaos_t2spir_transforms, label_to_integer, mask_mapping_transform])
-        elif (stage == "validation") or (stage == "test"):
+        elif stage in {"validation", "test"}:
             transform = Compose([chaos_t2spir_transforms, label_to_integer, mask_mapping_transform])
         else:
             raise ValueError("Either stage or transform should be specified.")

@@ -22,9 +22,9 @@ def read_image(image_path, mask_mapping=None):
             ds = pydicom.dcmread(str(image_path), force=True)
             ds.file_meta.TransferSyntaxUID = pydicom.uid.ImplicitVRLittleEndian
             image = ds.pixel_array.astype(np.int32)
-        elif image_path.suffix in [".nii", ".gz"]:
+        elif image_path.suffix in {".nii", ".gz"}:
             image = nib.load(str(image_path)).get_fdata()
-        elif image_path.suffix in [".png", ".jpg"]:
+        elif image_path.suffix in {".png", ".jpg"}:
             image = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
         else:
             raise OSError(
