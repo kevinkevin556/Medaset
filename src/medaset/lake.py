@@ -139,6 +139,7 @@ class SmatCtDataset(BaseMixIn, CacheDataset):
             # tsm = 1, vat = 2, sat = 3
             combine_into_tsm = ApplyMaskMappingd(keys=["label"], mask_mapping={1: 1, 3: 1, 5: 1, 6: 1, 4: 3})
             _transform = _transform + [combine_into_tsm, mask_mapping_transform]
+            self.num_classes = 4
         else:
             _transform = _transform + [mask_mapping_transform]
         transform = Compose(_transform)
